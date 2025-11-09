@@ -1,9 +1,11 @@
 Emplaitress {
-    classvar <notes, <inverse, <groups;
+    classvar <notes, <inverse, <groups, <voiceOrder, <maxVoices;
 
     *initClass {
         notes = 6.collect { Dictionary.new};
 		inverse = 6.collect {IdentityDictionary.new};
+		voiceOrder = 6.collect { Array.new };
+		maxVoices = 16;
         
         StartUp.add {
 			(Routine.new {
@@ -96,6 +98,7 @@ Emplaitress {
 					if (notes[voice][curNote] === syn, {
 						notes[voice].removeAt(curNote);
 					});
+					voiceOrder[voice].remove(syn);
 					// "freed %\n".postf(syn.nodeID)
 				});
 	    	    if (notes[voice].includesKey(note), {
@@ -106,6 +109,20 @@ Emplaitress {
 				// 2-way dict bookeeping.
 	    	    notes[voice].put(note, syn);
 				inverse[voice].put(syn, note);
+				voiceOrder[voice] = voiceOrder[voice].add(syn);
+
+				// LRU: prune oldest voices if over limit
+				while ({ voiceOrder[voice].size > maxVoices }, {
+					var oldest = voiceOrder[voice].removeAt(0);
+					var oldNote = inverse[voice][oldest];
+					if (oldNote.notNil, {
+						if (notes[voice][oldNote] === oldest, {
+							notes[voice].removeAt(oldNote);
+						});
+						inverse[voice].removeAt(oldest);
+					});
+					oldest.free;
+				});
 				}).play;
 	    	}, "emplaitress/note_on");
 	    	OSCFunc.new({ |msg, time, addr, recvPort|			
@@ -156,11 +173,26 @@ Emplaitress {
 						if (notes[voice][curNote] === syn, {
 							notes[voice].removeAt(curNote);
 						});
+						voiceOrder[voice].remove(syn);
 					});
 
 					// 2-way dict bookeeping.
 		    	    notes[voice].put(new_note, syn);
 					inverse[voice].put(syn, new_note);
+					voiceOrder[voice] = voiceOrder[voice].add(syn);
+
+					// LRU: prune oldest voices if over limit
+					while ({ voiceOrder[voice].size > maxVoices }, {
+						var oldest = voiceOrder[voice].removeAt(0);
+						var oldNote = inverse[voice][oldest];
+						if (oldNote.notNil, {
+							if (notes[voice][oldNote] === oldest, {
+								notes[voice].removeAt(oldNote);
+							});
+							inverse[voice].removeAt(oldest);
+						});
+						oldest.free;
+					});
 					});
 	    	}, "emplaitress/note_mod");
 
