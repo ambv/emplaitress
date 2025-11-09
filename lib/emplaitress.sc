@@ -96,6 +96,7 @@ Emplaitress {
 					if (notes[voice][curNote] === syn, {
 						notes[voice].removeAt(curNote);
 					});
+					// "freed %\n".postf(syn.nodeID)
 				});
 	    	    if (notes[voice].includesKey(note), {
 					var toEnd = notes[voice][note];
@@ -164,11 +165,17 @@ Emplaitress {
 	    	}, "emplaitress/note_mod");
 
 			OSCFunc.new({|msg, time, addr, recvPort|
-				notes.keysValuesDo {|voice, active|
-					active.keysValuesDo {|note, syn|
+				inverse.do {|active, voice|
+					active.keysValuesDo {|syn, note|
 						syn.set(\gate, 0);
-						active.removeAt(note);
-						inverse.removeAt(syn);
+						// active.removeAt(syn); -- this will happen in onFree
+						notes[voice].removeAt(note);
+						SystemClock.sched(1.0, {
+							// some engines get stuck playing forever
+							if (syn.isPlaying, {
+								syn.free;
+							});
+						});
 					};
 				};
 			}, "emplaitress/stop_all");
